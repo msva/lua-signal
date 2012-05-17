@@ -1,29 +1,39 @@
 include Make.config
 include Make.$(OS)
 
+DESTDIR := /
+LDIR := $(DESTDIR)/$(LUA_DIR)
+CDIR := $(DESTDIR)/$(LUA_LIBDIR)
+BDIR := $(DESTDIR)/$(BIN_DIR)
+PREF := $(DESTDIR)/$(PREFIX)
+
 BIN = src/signal.so
 OBJ = src/signal.o \
       src/signames.o \
       src/queue.o
+
 CC = gcc
 INCLUDES = -I$(LUA_INCLUDEPATH)
 DEFINES =
 LIBS = -l$(LUA_LIBNAME)
+
 COMMONFLAGS = -Werror -Wall -pedantic -O2 -g -pipe $(OS_FLAGS)
-CFLAGS = -c $(INCLUDES) $(DEFINES) $(COMMONFLAGS)
-LDFLAGS = -shared $(LIBS) $(COMMONFLAGS)
+C = -c $(INCLUDES) $(DEFINES) $(COMMONFLAGS)
+LD = -shared $(LIBS) $(COMMONFLAGS)
+C_FLAGS = $(C) $(CFLAGS)
+LD_FLAGS = $(LD) $(LDFLAGS)
 
 build : $(BIN)
 
 $(BIN) : $(OBJ)
-	$(CC) $(OBJ) $(LDFLAGS) -o $@
+	$(CC) $(OBJ) $(LD_FLAGS) -o $@
 
 %.o : %.c
-	$(CC) $(CFLAGS) -o $@ $<
+	$(CC) $(C_FLAGS) -o $@ $<
 
 install : $(BIN)
-	mkdir -p $(LUA_DIR)
-	cp $(BIN) $(LUA_DIR)
+	mkdir -p $(CDIR)
+	cp $(BIN) $(CDIR)
 
 MAIN_SRC = src/signal.c
 DOC_SRC = src/signal.luadoc
