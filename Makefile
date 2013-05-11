@@ -1,78 +1,86 @@
-include Make.config
-include Make.$(OS)
+include .config
 
-DESTDIR := /
-LDIR := $(DESTDIR)/$(LUA_DIR)
-CDIR := $(DESTDIR)/$(LUA_LIBDIR)
-BDIR := $(DESTDIR)/$(BIN_DIR)
-PREF := $(DESTDIR)/$(PREFIX)
+UNAME            ?= $(shell uname)
+DESTDIR          ?= /
+PKG_CONFIG       ?= pkg-config
+INSTALL          ?= install
+RM               ?= rm
+LUA_IMPL         ?= lua
+LUA_BIN          ?= $(LUA_IMPL)
+LUA_CMODULE_DIR  ?= $(shell $(PKG_CONFIG) --variable INSTALL_CMOD $(LUA_IMPL))
+LIBDIR           ?= $(shell $(PKG_CONFIG) --variable libdir $(LUA_IMPL))
+LUA_INC          ?= $(shell $(PKG_CONFIG) --variable INSTALL_INC $(LUA_IMPL))
+CC               ?= cc
 
-BIN = src/signal.so
-OBJ = src/signal.o \
-      src/signames.o \
-      src/queue.o
+ifeq ($(UNAME), Linux)
+OS_FLAGS         ?= -shared
+endif
+ifeq ($(UNAME), Darwin)
+OS_FLAGS         ?= -bundle -undefined dynamic_lookup
+endif
 
-CC = gcc
-INCLUDES = -I$(LUA_INCLUDEPATH)
-DEFINES =
-LIBS = -l$(LUA_LIBNAME)
+BIN               = src/signal.so
+OBJ               = src/signal.o src/signames.o src/queue.o
+SRC               = src/signal.c src/signames.c src/queue.c
+HDR               = src/signames.h src/queue.h
 
-COMMONFLAGS = -Werror -Wall -pedantic -O2 -g -pipe $(OS_FLAGS)
-C = -c $(INCLUDES) $(DEFINES) $(COMMONFLAGS)
-LD = -shared $(LIBS) $(COMMONFLAGS)
-C_FLAGS = $(C) $(CFLAGS)
-LD_FLAGS = $(LD) $(LDFLAGS)
+INCLUDES          = -I$(LUA_INC)
+DEFINES           =
+LIBS              = -L$(LIBDIR)
+COMMONFLAGS       = -O2 -g -pipe -fPIC $(OS_FLAGS)
+LF                = $(LIBS) $(COMMONFLAGS) $(LDFLAGS)
+CF                = -c $(INCLUDES) $(DEFINES) $(COMMONFLAGS) $(CFLAGS)
 
-build : $(BIN)
+TEST_FLS          = alarm_test.lua signal_test.lua simple_test.lua
+OTHER_FILES       = Makefile \
+	            .config \
+	            README \
+	            LICENSE \
+	            TODO
+VERSION           = "LuaSignal-0.2"
 
-$(BIN) : $(OBJ)
-	$(CC) $(OBJ) $(LD_FLAGS) -o $@
+all: $(BIN)
 
-%.o : %.c
-	$(CC) $(C_FLAGS) -o $@ $<
+$(OBJ): $(HDR)
 
-install : $(BIN)
-	mkdir -p $(CDIR)
-	cp $(BIN) $(CDIR)
+$(BIN): $(OBJ)
+	$(CC) $(LF) $^ -o $@
 
-MAIN_SRC = src/signal.c
-DOC_SRC = src/signal.luadoc
-OTHER_SRC = src/signames.c src/signames.h src/queue.c src/queue.h
-DOC_DIR = doc
+%.o: %.c
+	$(CC) $(CF) -o $@ $<
 
-doc :
-	mkdir -p $(DOC_DIR)
-	$(LUADOC) --nofiles -d $(DOC_DIR) $(DOC_SRC)
-	@touch doc
+clean:
+	$(RM) -f $(OBJ) $(BIN) test/*.so
 
-clean :
-	rm -rf $(OBJ) $(BIN) $(DOC_DIR)
+dep:
+	makedepend $(DEFINES) -Y $(SRC) > /dev/null 2>&1
+	$(RM) -f Makefile.bak
 
-TEST_SRC = test/signal_test.lua test/alarm_test.lua test/simple_test.lua
-OTHER_FILES = Makefile Make.config README LICENSE TODO
-VERSION = $(shell grep 'define VERSION ' $(MAIN_SRC) | sed 's/.define VERSION "\(.*\)"/\1/' | tr ' ' '-')
+test: all
+	ln -sf ../$(BIN) test/
+	cd test && $(LUA_BIN) alarm_test.lua
+#       doesn't work in non-interactive mode. At least, with LuaJIT
+#	-(cd test && $(LUA_BIN) signal_test.lua)
+	cd test && $(LUA_BIN) simple_test.lua
 
-dist : $(VERSION).tar.gz
+install: all
+	$(INSTALL) -d $(DESTDIR)$(LUA_CMODULE_DIR)
+	$(INSTALL) $(BIN) $(DESTDIR)$(LUA_CMODULE_DIR)
 
-$(VERSION).tar.gz : $(MAIN_SRC) $(OTHER_SRC) $(TEST_SRC) $(DOC_SRC) $(DOC_DIR) $(OTHER_FILES)
-	@echo "Creating $(VERSION).tar.gz"
+uninstall: clean
+	cd $(LUA_CMODULE_DIR);
+	$(RM) -f $(BIN)
+
+dist: $(VERSION).tar.gz
+
+$(VERSION).tar.gz: $(SRC) $(TEST_FLS) $(OTHER_FILES)
 	@mkdir $(VERSION)
 	@mkdir $(VERSION)/src
-	@cp $(MAIN_SRC) $(DOC_SRC) $(OTHER_SRC) $(VERSION)/src
+	@cp $(SRC) $(HDR) $(VERSION)/src
 	@mkdir $(VERSION)/test
-	@cp $(TEST_SRC) $(VERSION)/test
-	@mkdir $(VERSION)/doc
-	@cp -r $(DOC_DIR)/* $(VERSION)/doc
+	@cp $(TEST_FLS) $(VERSION)/test
+	@mkdir $(VERSION)/test/$(TTT_TEST_DIR)
+	@cp $(TTT_TEST_FLS) $(VERSION)/test/$(TTT_TEST_DIR)
 	@cp $(OTHER_FILES) $(VERSION)
-	@tar czf $(VERSION).tar.gz $(VERSION)
-	@rm -rf $(VERSION)
-
-dep :
-	makedepend $(INCLUDES) $(DEFINES) -Y src/*.c src/*.h > /dev/null 2>&1
-	rm -f Makefile.bak
-
-# DO NOT DELETE
-
-src/queue.o: src/queue.h
-src/signal.o: src/queue.h src/signames.h
-src/signames.o: src/signames.h
+	@tar -czf $(VERSION).tar.gz $(VERSION)
+	@$(RM) -rf $(VERSION)

@@ -7,7 +7,7 @@
 #include <unistd.h>
 
 #define REG_TABLE "luasignal"
-#define VERSION "LuaSignal 0.1"
+#define VERSION "LuaSignal 0.2"
 
 static lua_State* gL = NULL;
 static lua_Hook old_hook = NULL;
