@@ -1,4 +1,4 @@
-- more tests, and automated tests if possible
+- more tests
   - kill, suspend, and mask are completely untested, so they may or may not
     work at all
 - refactor a lot of the common code between the functions - mask and suspend in

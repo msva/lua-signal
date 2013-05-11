@@ -1,4 +1,4 @@
-LuaSignal v0.1
+LuaSignal v0.2
 Vadim A. Misbakh-Soloviov (mva[at]mva.name)
 
 OVERVIEW
@@ -8,9 +8,8 @@ Lua.
 
 INSTALL
 =======
-To install, modify Make.config to point to the appropriate paths, then type
+To install, modify .config (if needed), then type
 'make' and 'make install'.
-TODO: Fix Makefile to understand configuration paramaters instead of Make.config.
 
 DOCUMENTATION
 =============
@@ -34,7 +33,7 @@ CHANGES
 
 COPYRIGHT AND LICENSE
 =====================
-Copyright (C) 2012 Vadim A. Misbakh-Soloviov
+Copyright (C) Vadim A. Misbakh-Soloviov
 Copyright (C) 2007 Jesse Luehrs
 
 This code is distributed under the MIT license; a copy is in the LICENSE file
